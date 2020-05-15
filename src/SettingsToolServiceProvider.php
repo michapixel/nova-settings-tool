@@ -1,18 +1,22 @@
 <?php
 
-namespace Bakerkretzmar\NovaSettingsTool;
+namespace Bakerkretzmar\SettingsTool;
 
-use Bakerkretzmar\NovaSettingsTool\Http\Middleware\Authorize;
+use Laravel\Nova\Nova;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Bakerkretzmar\SettingsTool\Http\Middleware\Authorize;
 
 class SettingsToolServiceProvider extends ServiceProvider
 {
+    /**
+     * Bootstrap any application services.
+     */
     public function boot()
     {
         $this->publishes([
-            __DIR__.'/../config/nova-settings-tool.php' => config_path('nova-settings-tool.php'),
-        ], 'nova-settings-tool');
+            __DIR__.'/../config/settings.php' => config_path('settings.php'),
+        ], 'settings-tool');
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'settings-tool');
 
@@ -21,6 +25,9 @@ class SettingsToolServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * Register the tool's routes.
+     */
     protected function routes()
     {
         if ($this->app->routesAreCached()) {

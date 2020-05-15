@@ -3,7 +3,7 @@ Nova.booting((Vue, router, store) => {
         {
             name: 'settings-tool',
             path: '/settings',
-            component: require('./SettingsTool'),
+            component: require('./components/SettingsTool'),
         },
     ])
 })

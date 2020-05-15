@@ -1,55 +1,66 @@
 <?php
 
-namespace Bakerkretzmar\NovaSettingsTool\Http\Controllers;
+namespace Bakerkretzmar\SettingsTool\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Spatie\Valuestore\Valuestore;
+use Illuminate\Routing\Controller;
 
-class SettingsToolController
+class SettingsToolController extends Controller
 {
-    protected $store;
+    /**
+     * Path to the settings file on disk.
+     * @var string
+     */
+    protected $settingsPath;
 
-    public function __construct()
+    /**
+     * Create a new controller instance.
+     */
+    public function __construct(string $settingsPath = null)
     {
-        $this->store = Valuestore::make(
-            config('nova-settings-tool.path', storage_path('app/settings.json'))
-        );
+        $this->settingsPath = $settingsPath ?? storage_path(config('settings.path', 'app/settings.json'));
     }
 
-    public function read()
+    /**
+     * Retrieve and format settings from a file.
+     */
+    public function read(Request $request)
     {
-        $values = $this->store->all();
+        $settings = Valuestore::make($this->settingsPath)->all();
 
-        $settings = collect(config('nova-settings-tool.settings'));
+        $settingConfig = config('settings.panels');
 
-        $panels = $settings->where('panel', '!=', null)->pluck('panel')->unique()
-            ->flatMap(function ($panel) use ($settings) {
-                return [$panel => $settings->where('panel', $panel)->pluck('key')->all()];
-            })
-            ->when($settings->where('panel', null)->isNotEmpty(), function ($collection) use ($settings) {
-                return $collection->merge(['_default' => $settings->where('panel', null)->pluck('key')->all()]);
-            })
-            ->all();
-
-        $settings = $settings->map(function ($setting) use ($values) {
-            return array_merge([
-                    'type' => 'text',
-                    'label' => ucfirst($setting['key']),
-                    'value' => $values[$setting['key']] ?? null,
-                ], $setting);
-        })
-            ->keyBy('key')
-            ->all();
-
-        return response()->json(compact('settings', 'panels'));
-    }
-
-    public function write(Request $request)
-    {
-        foreach ($request->all() as $key => $value) {
-            $this->store->put($key, $value);
+        foreach ($settingConfig as $object) {
+            foreach ($object['settings'] as $settingObject) {
+                if (! array_key_exists($settingObject['key'], $settings)) {
+                    if ($settingObject['type'] == 'toggle') {
+                        $settings[$settingObject['key']] = $settingObject['default'] ?? false;
+                    } else {
+                        $settings[$settingObject['key']] = '';
+                    }
+                }
+            }
         }
 
-        return response()->json();
+        return response()->json([
+            'settings' => $settings,
+            'settingConfig' => $settingConfig,
+        ]);
+    }
+
+    /**
+     * Save updated settings to a file.
+     */
+    public function write(Request $request)
+    {
+        $settings = Valuestore::make($this->settingsPath);
+
+        foreach ($request->settings as $setting => $value) {
+            debug($setting);
+            $settings->put($setting, $value);
+        }
+
+        return response($settings->all(), 202);
     }
 }
